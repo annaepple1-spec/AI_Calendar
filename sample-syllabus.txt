@@ -1,0 +1,80 @@
+CS 201 - Data Structures and Algorithms
+Spring 2024 Syllabus
+
+Course Information:
+Instructor: Dr. Smith
+Time: MWF 10:00 AM - 11:30 AM
+Location: Science Building, Room 301
+
+Course Description:
+This course covers fundamental data structures and algorithms including arrays, linked lists,
+stacks, queues, trees, graphs, sorting, and searching algorithms.
+
+Course Schedule and Assignments:
+
+Week 1-2: Introduction to Data Structures
+- Reading Assignment: Chapters 1-2 (Due: January 22, 2024)
+
+Week 3-4: Arrays and Linked Lists
+- Programming Assignment 1: Implement a Linked List (Due: February 5, 2024)
+- Estimated time: 5 hours
+
+Week 5-6: Stacks and Queues
+- Quiz 1: Arrays and Linked Lists (February 12, 2024)
+- Programming Assignment 2: Stack and Queue Implementation (Due: February 19, 2024)
+- Estimated time: 6 hours
+
+Week 7: Midterm Review
+- Study Guide Available: February 21, 2024
+
+Week 8: MIDTERM EXAM (February 28, 2024)
+- Covers: Chapters 1-5
+- Time: 2 hours
+- Location: Same as regular class
+
+Week 9-10: Trees and Binary Search Trees
+- Programming Assignment 3: Binary Search Tree (Due: March 18, 2024)
+- Estimated time: 8 hours
+
+Week 11-12: Graphs and Graph Algorithms
+- Reading Assignment: Chapter 8 (Due: March 25, 2024)
+- Programming Assignment 4: Graph Traversal (Due: April 8, 2024)
+- Estimated time: 10 hours
+
+Week 13: Sorting Algorithms
+- Quiz 2: Trees and Graphs (April 10, 2024)
+
+Week 14: Algorithm Analysis
+- Programming Assignment 5: Sorting Analysis (Due: April 22, 2024)
+- Estimated time: 6 hours
+
+Week 15: Review
+- Final Project Proposal: Due April 24, 2024
+- Final Exam Study Guide Released: April 25, 2024
+
+Week 16: Finals Week
+- FINAL EXAM (May 6, 2024, 8:00 AM - 10:00 AM)
+- Comprehensive covering all material
+- Final Project Demo: May 8, 2024
+
+Grading:
+- Programming Assignments: 40%
+- Midterm Exam: 20%
+- Final Exam: 25%
+- Final Project: 10%
+- Quizzes and Participation: 5%
+
+Important Dates Summary:
+- First Assignment: February 5, 2024
+- Midterm Exam: February 28, 2024
+- Last Day to Drop: March 15, 2024
+- Final Project Proposal: April 24, 2024
+- Final Exam: May 6, 2024
+
+Office Hours:
+Monday/Wednesday 2:00 PM - 4:00 PM
+Or by appointment
+
+Contact:
+Email: dr.smith@university.edu
+Office: Science Building, Room 405
