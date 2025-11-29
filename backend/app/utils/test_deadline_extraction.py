@@ -94,20 +94,63 @@ def get_date_snippets(text: str, before: int = 1, after: int = 3) -> List[str]:
     return snippets
 
 
-def split_snippet_by_dates(snippet: str) -> List[str]:
+def is_valid_date_token(token: str) -> bool:
+    """
+    Decide if a raw DATE_REGEX match is a 'real' date token we care about.
+    Used both for extraction and for smart splitting.
+    """
+    token = token.strip()
+
+    # Skip ugly cross-line stuff like "February \n\n22"
+    if "\n" in token:
+        return False
+
+    # Numeric formats: dd/mm(/yyyy) or dd.mm(/yyyy)
+    m_num = re.match(r"^(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2,4}))?$", token)
+    if m_num:
+        # Reject things like "1/2", "2/2" etc. (almost always part/section numbers)
+        if re.match(r"^[1-9]/[1-9]$", token):
+            return False
+
+        day, month = int(m_num.group(1)), int(m_num.group(2))
+        return 1 <= day <= 31 and 1 <= month <= 12
+
+    # Short month names: "Sept 11"
+    if re.match(
+        r"(?i)^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}$",
+        token,
+    ):
+        return True
+
+    # Long month names: "September 11"
+    if re.match(
+        r"(?i)^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}$",
+        token,
+    ):
+        return True
+
+    return False
+
+
+def split_snippet_by_valid_dates(snippet: str) -> List[str]:
     """
     Within a large snippet containing many dates (like a detailed schedule grid),
-    split it into smaller chunks, each starting at one date and ending before
-    the next date. This is used for Bocconi-style 'DETAILED SCHEDULE' blocks.
+    split it into smaller chunks, each starting at one valid date token and ending
+    before the next valid date token.
     """
-    matches = list(DATE_REGEX.finditer(snippet))
-    if not matches:
+    valid_matches: List[re.Match] = []
+    for m in DATE_REGEX.finditer(snippet):
+        token = m.group(0).strip()
+        if is_valid_date_token(token):
+            valid_matches.append(m)
+
+    if not valid_matches:
         return [snippet]
 
     chunks: List[str] = []
-    for i, m in enumerate(matches):
+    for i, m in enumerate(valid_matches):
         start = m.start()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(snippet)
+        end = valid_matches[i + 1].start() if i + 1 < len(valid_matches) else len(snippet)
         chunk = snippet[start:end].strip()
         if chunk:
             chunks.append(chunk)
@@ -125,36 +168,8 @@ def extract_date_strings(snippet: str) -> List[str]:
 
     for match in matches:
         full_match = match[0].strip()
-
-        # 1) Numeric formats: dd/mm(/yyyy) or dd.mm(/yyyy)
-        m_num = re.match(r"^(\d{1,2})[/.](\d{1,2})(?:[/.](\d{2,4}))?$", full_match)
-        if m_num:
-            # Reject things like "1/2", "2/2" that are almost always part/section numbers
-            if re.match(r"^[1-9]/[1-9]$", full_match):
-                continue
-
-            day, month = int(m_num.group(1)), int(m_num.group(2))
-            if 1 <= day <= 31 and 1 <= month <= 12:
-                date_strings.append(full_match)
-            continue
-
-        # 2) Month-name formats must include a numeric day on the same token
-        #    e.g. "Sept 11", "September 29"
-        m_mon = re.match(
-            r"(?i)^(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+\d{1,2}$",
-            full_match,
-        )
-        if m_mon:
+        if is_valid_date_token(full_match):
             date_strings.append(full_match)
-            continue
-
-        m_mon_long = re.match(
-            r"(?i)^(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}$",
-            full_match,
-        )
-        if m_mon_long:
-            date_strings.append(full_match)
-            continue
 
     # Deduplicate
     return list(set(date_strings))
@@ -329,34 +344,50 @@ Syllabus snippet:
 
 def extract_inline_deadlines_from_text(text: str) -> List[Dict]:
     """
-    Very simple helper that looks for explicit 'DEADLINE:' lines and turns them
-    into administrative hard_deadline items. This is mainly for lines like:
+    Look for explicit 'DEADLINE' mentions in the raw text and turn them
+    into administrative hard_deadline items. Example patterns:
 
       DEADLINE: Sunday, Sept 11, 2022 please send an email ...
     """
     items: List[Dict] = []
-    for line in text.splitlines():
-        lower = line.lower()
-        if "deadline:" not in lower:
+
+    lowered = text.lower()
+    idx = 0
+    while True:
+        pos = lowered.find("deadline", idx)
+        if pos == -1:
+            break
+
+        tail = text[pos:]
+
+        # Try to find the first valid date token AFTER the word "deadline"
+        date_match = None
+        for m in DATE_REGEX.finditer(tail):
+            token = m.group(0).strip()
+            if is_valid_date_token(token):
+                date_match = m
+                break
+
+        if date_match is None:
+            idx = pos + len("deadline")
             continue
 
-        # Find any date-like string on the same line
-        m = DATE_REGEX.search(line)
-        if not m:
-            continue
-        date_string = m.group(0).strip()
+        date_string = date_match.group(0).strip()
 
-        # Everything after "DEADLINE:" becomes description
-        if "DEADLINE:" in line:
-            after = line.split("DEADLINE:", 1)[1].strip()
-        elif "deadline:" in line:
-            after = line.split("deadline:", 1)[1].strip()
+        # Take only the first line after 'deadline' for description
+        first_line = tail.split("\n", 1)[0]
+
+        if "DEADLINE:" in first_line:
+            after = first_line.split("DEADLINE:", 1)[1].strip()
+        elif "deadline:" in first_line:
+            after = first_line.split("deadline:", 1)[1].strip()
         else:
-            after = line.strip()
+            after = first_line[len("deadline") :].strip()
+
+        description = " ".join(after.split())
 
         title = "Administrative deadline"
-        # A bit nicer if it's the Bocconi attendance deadline
-        if "attending" in lower and "non-attending" in lower:
+        if "attending" in first_line.lower() and "non-attending" in first_line.lower():
             title = "Confirm attending / non-attending status"
 
         items.append(
@@ -365,9 +396,11 @@ def extract_inline_deadlines_from_text(text: str) -> List[Dict]:
                 "date": date_string,
                 "type": "administrative",
                 "title": title,
-                "description": after,
+                "description": description,
             }
         )
+
+        idx = pos + len("deadline")
 
     return items
 
@@ -388,17 +421,18 @@ def extract_all_tasks_from_syllabus(
     big_snippets = get_date_snippets(text)
 
     # Smart splitting:
-    # - For "DETAILED SCHEDULE" style grids (Bocconi), we split into per-date
-    #   mini-snippets so the model can reliably attach readings to each class.
-    # - For all other snippets (Yale, narrative + deadlines), we keep
-    #   the big snippet intact so multi-date "due X" phrases stay together.
+    # - For schedule grids (e.g., "DETAILED SCHEDULE", "DAY INSTRUCTOR" headers),
+    #   split into per-date mini-snippets so the model can reliably attach
+    #   readings to each class.
+    # - For all other snippets (narrative + deadlines, etc.), keep the big
+    #   snippet intact so multi-date "due X" phrases stay together.
     snippets: List[str] = []
     for big in big_snippets:
         lower = big.lower()
         is_schedule_grid = "detailed schedule" in lower or "day instructor" in lower
 
         if is_schedule_grid:
-            mini = split_snippet_by_dates(big)
+            mini = split_snippet_by_valid_dates(big)
             snippets.extend(mini)
         else:
             snippets.append(big)
